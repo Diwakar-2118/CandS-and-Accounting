@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:monitor;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+monitor:
+  users:
+    - username: viewer
+      password: "{noop}viewer-pw"
+      roles: [VIEWER]
+    - username: operator
+      password: "{noop}operator-pw"
+      roles: [OPERATOR]

@@ -1,0 +1,40 @@
+# Run on a laptop/VM inside the network that can reach the Toucan UAT URLs.
+#   cp .env.example .env   # fill in secrets
+#   docker compose up -d --build
+services:
+  postgres:
+    image: postgres:16.4
+    environment:
+      POSTGRES_DB: monitor
+      POSTGRES_USER: monitor
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitor"]
+      interval: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/monitor
+      DB_USER: monitor
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./payu-recon:/data/payu-recon:ro
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "8088:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

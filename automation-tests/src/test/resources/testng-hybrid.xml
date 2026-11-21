@@ -1,0 +1,7 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="toucan-hybrid">
+  <listeners><listener class-name="in.toucan.monitor.tests.ExtentListener"/></listeners>
+  <test name="hybrid">
+    <classes><class name="in.toucan.monitor.tests.HybridCrossCheckTest"/></classes>
+  </test>
+</suite>

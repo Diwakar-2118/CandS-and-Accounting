@@ -1,0 +1,11 @@
+target/
+node_modules/
+dist/
+data/
+logs/
+.env
+*.log
+.idea/
+.vscode/
+*.iml
+docs/discovery-runtime.md

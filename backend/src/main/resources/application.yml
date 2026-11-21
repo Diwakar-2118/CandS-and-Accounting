@@ -1,0 +1,74 @@
+# Toucan C&S and Accounting monitor.
+# Toucan credentials: TOUCAN_USERNAME / TOUCAN_PASSWORD (read by the collector from the environment only).
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: cands-accounting-monitor
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/monitor}
+    username: ${DB_USER:monitor}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+monitor:
+  window-days: ${MONITOR_WINDOW_DAYS:7}
+  rrn-lookups-per-run: ${MONITOR_RRN_LOOKUPS:500}
+  payment-txn-lookups-per-run: ${MONITOR_PAYMENT_LOOKUPS:200}
+  tolerance: 0.01
+  # ---- Business inputs: leave unset until the business supplies them (checks report NOT_EVALUATED) ----
+  # jv-window-hours: 24
+  # default-sla-hours: 24
+  # sla-hours: { PURCHASE: 24 }
+  # expected-daily-reports: [EOD_SETTLED_REPORT, EOD_NOTSETTLED_REPORT]
+  # calendar:
+  #   - { dataset: cs.scheme_files, file-name-regex: "CARDINTVISA.*", days: [MONDAY, TUESDAY], due-by: "09:00" }
+  # statement-ledgers: [Bank_Balance_Escrow_AP]   # confirm the entryType value format first
+  # ---- Field names not observed in Phase 1; confirm from docs/discovery-runtime.md, then set ----
+  # fields:
+  #   txn.mdrAmount: [mdrAmount]
+  #   payment.amount: [paymentAmount]
+  #   posting.ttCode: [subModule]
+  payu-platform-values: [PAYU]
+  payu-recon:
+    enabled: false
+  schedule:
+    enabled: ${MONITOR_SCHEDULE_ENABLED:false}
+    transactions: ${MONITOR_CRON_TRANSACTIONS:0 */15 * * * *}
+    files: ${MONITOR_CRON_FILES:0 5 * * * *}
+    ledger: ${MONITOR_CRON_LEDGER:0 30 6 * * *}
+  users:
+    - username: ${DASH_VIEWER_USER:viewer}
+      password: ${DASH_VIEWER_PASSWORD:}
+      roles: [VIEWER]
+    - username: ${DASH_OPERATOR_USER:operator}
+      password: ${DASH_OPERATOR_PASSWORD:}
+      roles: [OPERATOR]
+    - username: ${DASH_ADMIN_USER:admin}
+      password: ${DASH_ADMIN_PASSWORD:}
+      roles: [ADMIN]
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:file:./data/monitor;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ""
