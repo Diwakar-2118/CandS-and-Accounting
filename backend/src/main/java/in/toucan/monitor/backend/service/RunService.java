@@ -56,6 +56,18 @@ public class RunService {
         this.clock = clock;
     }
 
+    /** A run still RUNNING at startup was cut off by a restart: mark it so it doesn't look live forever. */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void abortInterruptedRuns() {
+        runs.findAll().stream().filter(r -> "RUNNING".equals(r.status)).forEach(r -> {
+            r.status = "ABORTED";
+            r.finishedAt = Instant.now(clock);
+            r.error = (r.error == null ? "" : r.error + " ") + "Interrupted by an application restart.";
+            runs.save(r);
+            log.warn("Marked interrupted run {} as ABORTED", r.id);
+        });
+    }
+
     public boolean isRunning() {
         return running.get();
     }

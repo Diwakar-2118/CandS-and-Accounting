@@ -28,13 +28,14 @@ public class CollectionService {
 
     private static final Logger log = LoggerFactory.getLogger(CollectionService.class);
 
+    /** Declared in run order: quick groups first so the dashboard fills before the slow per-record look-ups. */
     public enum Group {
-        /** C&S transactions, payments, holds/reserves, rejects + Accounting postings by RRN. */
-        TRANSACTIONS,
+        /** Accounting reference data, trial balance, adjustments, periods, ledger statements. */
+        LEDGER,
         /** Scheme/payment files, reports, processed files, JV, UPI BDF, bulk downloads, payment exceptions. */
         FILES,
-        /** Accounting reference data, trial balance, adjustments, periods, ledger statements. */
-        LEDGER
+        /** C&S transactions, payments, holds/reserves, rejects + Accounting postings by RRN. */
+        TRANSACTIONS
     }
 
     private final ToucanClients clients;
@@ -74,6 +75,17 @@ public class CollectionService {
         n += one(CS_PAYMENTS_CREDIT, runId, from, to, Map.of());
         n += one(CS_PAYMENTS_DEBIT, runId, from, to, Map.of());
 
+        // Accounting postings per RRN first (drives the accounting-status KPI), for transactions not yet
+        // confirmed as posted, oldest first.
+        List<CsTxnEntity> pending = txns.needingAccountingLookup(from, to,
+                PageRequest.of(0, props.getRrnLookupsPerRun()));
+        Instant now = Instant.now();
+        for (CsTxnEntity t : pending) {
+            n += one(ACC_RRN_POSTINGS, runId, null, null, Map.of("rrn", t.rrn));
+            t.accountingCheckedAt = now;
+        }
+        txns.saveAll(pending);
+
         // Transactions behind payments: one look-up per (run, MID, side) seen on released transactions.
         Set<List<String>> paymentKeys = new LinkedHashSet<>();
         for (CsTxnEntity t : txns.findBySalesDateBetween(from, to)) {
@@ -90,16 +102,6 @@ public class CollectionService {
             q.put("dbOrcrToMerchant", k.get(2));
             n += one(CS_PAYMENT_TXNS, runId, null, null, q);
         }
-
-        // Accounting postings per RRN for transactions not yet confirmed as posted.
-        List<CsTxnEntity> pending = txns.needingAccountingLookup(from, to,
-                PageRequest.of(0, props.getRrnLookupsPerRun()));
-        Instant now = Instant.now();
-        for (CsTxnEntity t : pending) {
-            n += one(ACC_RRN_POSTINGS, runId, null, null, Map.of("rrn", t.rrn));
-            t.accountingCheckedAt = now;
-        }
-        txns.saveAll(pending);
         return n;
     }
 

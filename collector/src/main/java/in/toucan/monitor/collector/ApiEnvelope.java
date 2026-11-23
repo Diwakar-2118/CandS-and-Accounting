@@ -32,12 +32,22 @@ public record ApiEnvelope(int httpStatus, JsonNode body) {
         return body == null ? null : body.path("message").asText(null);
     }
 
-    /** True only when HTTP is 2xx, success is true and any statusCode in the body is 2xx. */
+    /**
+     * True when HTTP is 2xx and the body does not signal an error. Observed on UAT (Phase 1 runtime):
+     * <ul>
+     *   <li>success:true with statusCode 200 (transaction search, Accounting) or statusCode 0 (files, JV, BDF): OK</li>
+     *   <li>success:false, statusCode:500, message:NOTUSED: error</li>
+     *   <li>no success field, statusCode 0, no message, no content (merPayReq/getAllMerPay when empty): OK, empty</li>
+     * </ul>
+     */
     public boolean isOk() {
         if (httpStatus < 200 || httpStatus >= 300) return false;
-        if (!success()) return false;
         Integer sc = statusCode();
-        return sc == null || (sc >= 200 && sc < 300);
+        boolean scOk = sc == null || sc == 0 || (sc >= 200 && sc < 300);
+        if (!scOk) return false;
+        if (success()) return true;
+        boolean successAbsent = body != null && !body.has("success");
+        return successAbsent && (message() == null || message().isBlank());
     }
 
     /** True for the HTTP-200-but-failed pattern (e.g. message NOTUSED). */
@@ -59,14 +69,18 @@ public record ApiEnvelope(int httpStatus, JsonNode body) {
         return out;
     }
 
-    /** Total rows the server reports, if it says. */
+    /**
+     * Total rows the server reports. Paged endpoints return totalCount:0 next to the real
+     * responseObject.totalElements, so the largest reported figure wins.
+     */
     public OptionalLong total() {
         if (body == null) return OptionalLong.empty();
+        long best = -1;
         for (JsonNode n : List.of(body.path("totalCount"), body.path("responseObject").path("totalElements"),
                 body.path("object").path("totalElements"))) {
-            if (n.isNumber()) return OptionalLong.of(n.asLong());
+            if (n.isNumber()) best = Math.max(best, n.asLong());
         }
-        return OptionalLong.empty();
+        return best < 0 ? OptionalLong.empty() : OptionalLong.of(best);
     }
 
     public String describeError() {

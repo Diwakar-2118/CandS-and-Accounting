@@ -106,6 +106,26 @@ class DatasetCollectorTest {
     }
 
     @Test
+    void statusCodeZeroPagesAreReadUsingTotalElements() {
+        // Shape observed on UAT for /api/clearing/getallfiles: success:true, statusCode:0, totalCount:0.
+        ToucanClients c = clients(b -> b.path("pageNo").asInt() == 0
+                ? "{\"success\":true,\"statusCode\":0,\"totalCount\":0,\"responseObject\":{\"content\":[{\"fileName\":\"a\",\"localTxnDate\":\"2026-11-20\",\"fileFlag\":\"F\"},{\"fileName\":\"b\",\"localTxnDate\":\"2026-11-20\",\"fileFlag\":\"F\"}],\"totalElements\":3}}"
+                : "{\"success\":true,\"statusCode\":0,\"totalCount\":0,\"responseObject\":{\"content\":[{\"fileName\":\"c\",\"localTxnDate\":\"2026-11-20\",\"fileFlag\":\"F\"}],\"totalElements\":3}}");
+        CollectionResult r = c.collector.collect(Datasets.get(Datasets.CS_SCHEME_FILES), null, null, Map.of());
+        assertThat(r.ok()).isTrue();
+        assertThat(r.records()).hasSize(3);
+        assertThat(r.totalReported()).isEqualTo(3L);
+    }
+
+    @Test
+    void emptyPaymentReplyWithoutSuccessFieldIsEmptyNotError() {
+        ToucanClients c = clients(b -> "{\"statusCode\":0,\"totalCount\":0}");
+        CollectionResult r = c.collector.collect(Datasets.get(Datasets.CS_PAYMENTS_CREDIT), null, null, Map.of());
+        assertThat(r.ok()).isTrue();
+        assertThat(r.records()).isEmpty();
+    }
+
+    @Test
     void hashIsIndependentOfKeyOrder() throws Exception {
         ToucanClients c = clients(b -> "{}");
         assertThat(c.collector.hash(om.readTree("{\"a\":1,\"b\":{\"x\":1,\"y\":2}}")))

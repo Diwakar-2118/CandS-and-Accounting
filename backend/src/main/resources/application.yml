@@ -28,8 +28,8 @@ management:
 
 monitor:
   window-days: ${MONITOR_WINDOW_DAYS:7}
-  rrn-lookups-per-run: ${MONITOR_RRN_LOOKUPS:500}
-  payment-txn-lookups-per-run: ${MONITOR_PAYMENT_LOOKUPS:200}
+  rrn-lookups-per-run: ${MONITOR_RRN_LOOKUPS:100}
+  payment-txn-lookups-per-run: ${MONITOR_PAYMENT_LOOKUPS:50}
   tolerance: 0.01
   # ---- Business inputs: leave unset until the business supplies them (checks report NOT_EVALUATED) ----
   # jv-window-hours: 24

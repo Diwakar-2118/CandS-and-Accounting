@@ -23,9 +23,9 @@ public class MonitorProperties {
     /** Default evaluation window in days, ending today (IST). */
     private int windowDays = 7;
     /** Max RRN look-ups against Accounting per run. */
-    private int rrnLookupsPerRun = 500;
+    private int rrnLookupsPerRun = 100;
     /** Max payment -> transactions look-ups per run. */
-    private int paymentTxnLookupsPerRun = 200;
+    private int paymentTxnLookupsPerRun = 50;
     private BigDecimal tolerance = new BigDecimal("0.01");
     private Integer jvWindowHours;
     private Integer defaultSlaHours;
