@@ -140,19 +140,22 @@ export default function Executive() {
         <Box sx={{ flex: 1, minWidth: 260 }}>
           <Typography variant="h5" fontWeight={800}>Executive Summary</Typography>
           <Typography variant="body2" color="text.secondary">Payments volume, settlement, Accounting confirmation and open issues · Toucan UAT</Typography>
+          <Typography className="print-only" variant="body2" color="text.secondary">
+            {v ? v.from + ' to ' + v.to + ' · ' : ''}{sub} · exported {new Date().toLocaleString('en-IN')}
+          </Typography>
         </Box>
-        <TextField select size="small" label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} sx={{ minWidth: 150 }}>
+        <TextField className="no-print" select size="small" label="Period" value={period} onChange={(e) => setPeriod(e.target.value)} sx={{ minWidth: 150 }}>
           {PERIODS.map(([k, l]) => <MenuItem key={k} value={k}>{l}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Processor" value={processor} onChange={(e) => setProcessor(e.target.value)} sx={{ minWidth: 150 }}>
+        <TextField className="no-print" select size="small" label="Processor" value={processor} onChange={(e) => setProcessor(e.target.value)} sx={{ minWidth: 150 }}>
           <MenuItem value="">All</MenuItem>
           {meta?.processors.map((p) => <MenuItem key={p.code} value={p.code}>{p.displayName}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Payment mode" value={mode} onChange={(e) => setMode(e.target.value)} sx={{ minWidth: 150 }}>
+        <TextField className="no-print" select size="small" label="Payment mode" value={mode} onChange={(e) => setMode(e.target.value)} sx={{ minWidth: 150 }}>
           <MenuItem value="">All</MenuItem>
           {(v?.channels ?? []).map((c) => <MenuItem key={c.key} value={c.key}>{c.label}</MenuItem>)}
         </TextField>
-        <Button variant="outlined" onClick={() => { setPeriod('last7'); setProcessor(''); setMode(''); }}>Reset</Button>
+        <Button className="no-print" variant="outlined" onClick={() => { setPeriod('last7'); setProcessor(''); setMode(''); }}>Reset</Button>
       </Box>
 
       {(vol.loading || kpis.loading) && <LinearProgress sx={{ mb: 2 }} />}

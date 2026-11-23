@@ -35,6 +35,9 @@ export function useIsDark(): boolean {
 }
 
 export function loadMode(): 'dark' | 'light' {
+  // ?theme=light|dark in the URL wins (shareable links, PDF/screenshot capture).
+  const fromUrl = new URLSearchParams(window.location.search).get('theme');
+  if (fromUrl === 'light' || fromUrl === 'dark') return fromUrl;
   try {
     return localStorage.getItem('monitor.colorMode') === 'light' ? 'light' : 'dark';
   } catch {

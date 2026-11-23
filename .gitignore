@@ -10,3 +10,4 @@ logs/
 *.iml
 docs/discovery-runtime.md
 *.tsbuildinfo
+exports/

@@ -41,6 +41,17 @@ Then open **Runs & Alerts → Run validation**, or turn on the scheduler with `M
 - files hourly
 - ledger and trial balance daily
 
+## Dashboard tips
+
+- **Executive Summary** is the home page for management. The other screens are operations detail.
+- **Light / Dark mode** is the button at top right. It is remembered per browser. Add `?theme=light` or `?theme=dark` to a link to force one.
+- **Export PDF** (top right) opens the browser print dialog; choose "Save as PDF". The print layout:
+  - is A3 portrait
+  - hides navigation and filters
+  - adds the period and export time
+  - keeps the theme colours
+  - never splits a card across pages
+
 ## Phase 1: runtime field discovery (do this first with credentials)
 
 ```bash
