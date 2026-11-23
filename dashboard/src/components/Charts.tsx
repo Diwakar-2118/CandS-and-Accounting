@@ -1,7 +1,7 @@
 import { Box, Button, Card, CardContent, Typography, useMediaQuery } from '@mui/material';
 import { ReactNode, useState } from 'react';
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { Row } from '../api';
 import { colorFor, statusColor } from '../palette';
@@ -43,17 +43,18 @@ export function ProcessorLines({ rows, suffix, title, allProcessors }: { rows: R
   const universe = Array.from(new Set([...allProcessors, ...ents]));
   return (
     <ChartCard title={title} rows={rows}>
-      <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+      <AreaChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+        <defs>{ents.map((e) => <linearGradient id={`pl-${suffix}-${e}`.replace(/W/g, '')} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={colorFor(e, universe, dark)} stopOpacity={0.35} /><stop offset="100%" stopColor={colorFor(e, universe, dark)} stopOpacity={0.02} /></linearGradient>)}</defs>
         <CartesianGrid vertical={false} strokeOpacity={0.25} />
         <XAxis dataKey="date" tick={AXIS} />
         <YAxis tick={AXIS} tickFormatter={(v: number) => v.toLocaleString('en-IN', { notation: 'compact' })} />
         <Tooltip formatter={(v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 2 })} />
         {ents.length > 1 && <Legend />}
         {ents.map((e) => (
-          <Line key={e} type="monotone" dataKey={e + suffix} name={e} stroke={colorFor(e, universe, dark)} strokeWidth={2}
-            dot={{ r: 4 }} activeDot={{ r: 5 }} />
+          <Area key={e} type="monotone" dataKey={e + suffix} name={e} stroke={colorFor(e, universe, dark)} strokeWidth={2}
+            fill={`url(#${`pl-${suffix}-${e}`.replace(/W/g, '')})`} dot={false} activeDot={{ r: 5 }} />
         ))}
-      </LineChart>
+      </AreaChart>
     </ChartCard>
   );
 }
@@ -63,15 +64,16 @@ export function TwoLines({ rows, a, b, title, labels }: { rows: Row[]; a: string
   const c = [colorFor('a', ['a', 'b'], dark), colorFor('b', ['a', 'b'], dark)];
   return (
     <ChartCard title={title} rows={rows} note="Accounting = transactions with postings found by RRN.">
-      <LineChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+      <AreaChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+        <defs><linearGradient id={'tl-a'} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c[0]} stopOpacity={0.35} /><stop offset="100%" stopColor={c[0]} stopOpacity={0.02} /></linearGradient><linearGradient id={'tl-b'} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c[1]} stopOpacity={0.35} /><stop offset="100%" stopColor={c[1]} stopOpacity={0.02} /></linearGradient></defs>
         <CartesianGrid vertical={false} strokeOpacity={0.25} />
         <XAxis dataKey="date" tick={AXIS} />
         <YAxis tick={AXIS} />
         <Tooltip />
         <Legend />
-        <Line dataKey={a} name={labels[0]} stroke={c[0]} strokeWidth={2} dot={{ r: 4 }} />
-        <Line dataKey={b} name={labels[1]} stroke={c[1]} strokeWidth={2} dot={{ r: 4 }} />
-      </LineChart>
+        <Area type="monotone" dataKey={a} name={labels[0]} stroke={c[0]} strokeWidth={2} fill="url(#tl-a)" dot={false} activeDot={{ r: 5 }} />
+        <Area type="monotone" dataKey={b} name={labels[1]} stroke={c[1]} strokeWidth={2} fill="url(#tl-b)" dot={false} activeDot={{ r: 5 }} />
+      </AreaChart>
     </ChartCard>
   );
 }

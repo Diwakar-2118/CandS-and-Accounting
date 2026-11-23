@@ -28,10 +28,12 @@ public class ApiController {
     private final AuditService audit;
     private final Repos.ProcessorRepo processors;
     private final Repos.AuditRepo auditRepo;
+    private final VolumeService volume;
 
     public ApiController(QueryService q, KpiService kpis, RunService runs, MappingService mappings,
                          ExportService export, AuditService audit, Repos.ProcessorRepo processors,
-                         Repos.AuditRepo auditRepo) {
+                         Repos.AuditRepo auditRepo, VolumeService volume) {
+        this.volume = volume;
         this.q = q;
         this.kpis = kpis;
         this.runs = runs;
@@ -71,6 +73,21 @@ public class ApiController {
     @GetMapping("/kpis")
     public List<Map<String, Object>> kpis(@RequestParam Map<String, String> p) {
         return kpis.overview(filters(p));
+    }
+
+    /** Volume dashboard. frequency = today|yesterday|last7|month overrides from/to; channel = payment mode. */
+    @GetMapping("/volume")
+    public Map<String, Object> volume(@RequestParam Map<String, String> p) {
+        Map<String, String> params = new HashMap<>(p);
+        LocalDate[] r = VolumeService.range(p.get("frequency"), runs.today());
+        if (r != null) {
+            params.put("from", r[0].toString());
+            params.put("to", r[1].toString());
+        }
+        Map<String, Object> out = new LinkedHashMap<>(volume.volume(filters(params)));
+        out.put("from", params.getOrDefault("from", runs.defaultFrom().toString()));
+        out.put("to", params.getOrDefault("to", runs.today().toString()));
+        return out;
     }
 
     @GetMapping("/charts")

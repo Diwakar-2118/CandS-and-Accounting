@@ -8,12 +8,13 @@ import Files from './pages/Files';
 import Ledger from './pages/Ledger';
 import { DataQuality, Processors, Recon, Runs } from './pages/Other';
 import Overview from './pages/Overview';
+import Executive from './pages/Executive';
 import Transactions from './pages/Transactions';
 import Validation from './pages/Validation';
 import { SURFACE } from './palette';
 
 const NAV: [string, string][] = [
-  ['/', 'Overview'], ['/processors', 'Processors'], ['/transactions', 'C&S Transactions'], ['/files', 'Files & Reports'],
+  ['/', 'Executive Summary'], ['/overview', 'Operations overview'], ['/processors', 'Processors'], ['/transactions', 'C&S Transactions'], ['/files', 'Files & Reports'],
   ['/validation', 'Accounting Validation'], ['/ledger', 'Ledger Health'], ['/recon', 'Reconciliation'],
   ['/runs', 'Runs & Alerts'], ['/data-quality', 'Data Quality'],
 ];
@@ -41,9 +42,10 @@ function Shell() {
       </Drawer>
       <Box component="main" sx={{ flex: 1, p: 2, minWidth: 0 }}>
         <Toolbar />
-        <FilterBar />
+        {loc.pathname !== '/' && <FilterBar />}
         <Routes>
-          <Route path="/" element={<Overview />} />
+          <Route path="/" element={<Executive />} />
+          <Route path="/overview" element={<Overview />} />
           <Route path="/processors" element={<Processors />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/files" element={<Files />} />
@@ -61,7 +63,7 @@ function Shell() {
 function App() {
   const dark = useMediaQuery('(prefers-color-scheme: dark)');
   const theme = useMemo(() => createTheme({
-    palette: { mode: dark ? 'dark' : 'light', background: { default: dark ? SURFACE.dark : SURFACE.light, paper: dark ? '#222221' : '#ffffff' } },
+    palette: { mode: dark ? 'dark' : 'light', background: { default: dark ? SURFACE.dark : '#f5f6f8', paper: dark ? '#222221' : '#ffffff' } },
   }), [dark]);
   return (
     <ThemeProvider theme={theme}>

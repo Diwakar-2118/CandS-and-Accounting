@@ -10,17 +10,17 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Global dashboard filters. Channel is derived only from observed values: scheme codes (UPI_NPCI vs
- * card schemes), fee transaction codes and transactionStatus HOLD.
+ * Global dashboard filters. Channel (payment mode) is derived only from observed values: schemeCode via
+ * {@link VolumeService#CHANNELS}, fee transaction codes, and transactionStatus HOLD.
  */
 public record Filters(LocalDate from, LocalDate to, String processor, String scheme, String channel,
                       String merchant, String txnStatus, String accountingStatus, String ttCode, String fileType,
                       String q, String settlementStatus, String paymentReleaseStatus) {
 
-    public static final List<String> CARD_SCHEMES = List.of("VISA", "MC", "RUPAY");
+    public static final List<String> CARD_SCHEMES = List.of("VISA", "MC", "RUPAY", "AMEX");
     public static final List<String> FEE_CODES = List.of("SETTLEMENT_FEE", "RENT_FEE", "MISC_FEE", "UPFRONT_RENT_FEE",
             "SETUP_FEE");
-    public static final List<String> CHANNELS = List.of("CARDS", "UPI", "FEE", "HOLD");
+    public static final List<String> CHANNELS = List.of("CARD", "UPI", "NETBANKING", "BNPL", "EMI", "WALLET", "FEE", "HOLD");
 
     public Specification<CsTxnEntity> spec() {
         return (root, query, cb) -> {
@@ -36,12 +36,12 @@ public record Filters(LocalDate from, LocalDate to, String processor, String sch
             if (has(paymentReleaseStatus)) p.add(cb.equal(root.get("paymentReleaseStatus"), paymentReleaseStatus));
             if (has(accountingStatus)) p.add(cb.equal(root.get("accountingStatus"), accountingStatus));
             if (has(channel)) {
-                switch (channel.toUpperCase(Locale.ROOT)) {
-                    case "UPI" -> p.add(cb.like(root.get("schemeCode"), "UPI%"));
-                    case "CARDS" -> p.add(root.get("schemeCode").in(CARD_SCHEMES));
+                String c = channel.toUpperCase(Locale.ROOT);
+                switch (c) {
                     case "FEE" -> p.add(root.get("transactionCode").in(FEE_CODES));
                     case "HOLD" -> p.add(cb.equal(root.get("transactionStatus"), "HOLD"));
-                    default -> { }
+                    default -> VolumeService.CHANNELS.stream().filter(x -> x.key().equals(c)).findFirst()
+                            .ifPresent(x -> p.add(root.get("schemeCode").in(x.schemes())));
                 }
             }
             if (has(q)) {

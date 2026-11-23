@@ -89,6 +89,15 @@ class MonitorIntegrationTest {
         assertThat(jv.path("value").isNull()).isTrue();
         assertThat(jv.path("reason").asText()).contains("NOTUSED");
 
+        // Volume dashboard: the stored txn has no schemeCode, so it counts in Total but in no channel.
+        JsonNode vol = om.readTree(mvc.perform(get("/api/volume?from=2026-11-19&to=2026-11-19")
+                .with(httpBasic("viewer", "viewer-pw"))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(vol.path("available").asBoolean()).isTrue();
+        assertThat(vol.path("total").path("total").asLong()).isEqualTo(1);
+        assertThat(vol.path("granularity").asText()).isEqualTo("hour");
+        assertThat(vol.path("series")).hasSize(24);
+        assertThat(vol.path("channels").get(0).path("total").asLong()).isZero();
+
         // Viewer cannot trigger runs; anonymous cannot read.
         mvc.perform(post("/api/runs").with(httpBasic("viewer", "viewer-pw"))).andExpect(status().isForbidden());
         mvc.perform(get("/api/kpis")).andExpect(status().isUnauthorized());
