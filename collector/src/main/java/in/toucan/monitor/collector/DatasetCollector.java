@@ -66,7 +66,10 @@ public class DatasetCollector {
                 if (!env.isOk()) {
                     // Some screens answer an empty search with success:false + "No records found".
                     // That is a valid empty result; anything else (e.g. NOTUSED/500) means unavailable.
-                    if (env.httpStatus() / 100 == 2 && isNoRecords(env.message())) break;
+                    if (env.httpStatus() / 100 == 2 && isNoRecords(env.message())) {
+                        if (firstBody == null) firstBody = env.body();
+                        break;
+                    }
                     return failed(spec, params, "Source error: " + env.describeError(), retrievedAt);
                 }
                 if (firstBody == null) firstBody = env.body();
@@ -111,7 +114,9 @@ public class DatasetCollector {
     }
 
     static boolean isNoRecords(String message) {
-        return message != null && message.toLowerCase(java.util.Locale.ROOT).matches(".*\\bno (records?|data)( found)?\\b.*");
+        // "Record Not Found" (statusCode 404) is Accounting's answer for an RRN with no postings yet.
+        return message != null && message.toLowerCase(java.util.Locale.ROOT)
+                .matches(".*\\b(no (records?|data)( found)?|records? not found)\\b.*");
     }
 
     static String naturalKey(DatasetSpec spec, JsonNode row, String hash) {

@@ -126,6 +126,15 @@ class DatasetCollectorTest {
     }
 
     @Test
+    void rrnRecordNotFoundIsAnEmptySnapshotNotAnError() {
+        // Accounting's reply on UAT for an RRN with no postings yet.
+        ToucanClients c = clients(b -> "{\"success\":false,\"statusCode\":404,\"message\":\"Record Not Found\"}");
+        CollectionResult r = c.collector.collect(Datasets.get(Datasets.ACC_RRN_POSTINGS), null, null, Map.of("rrn", "9"));
+        assertThat(r.ok()).isTrue();
+        assertThat(r.records()).singleElement().satisfies(x -> assertThat(x.payload().path("rows")).isEmpty());
+    }
+
+    @Test
     void hashIsIndependentOfKeyOrder() throws Exception {
         ToucanClients c = clients(b -> "{}");
         assertThat(c.collector.hash(om.readTree("{\"a\":1,\"b\":{\"x\":1,\"y\":2}}")))

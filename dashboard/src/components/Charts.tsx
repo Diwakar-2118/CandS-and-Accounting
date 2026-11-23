@@ -6,6 +6,7 @@ import {
 import { Row } from '../api';
 import { colorFor, statusColor } from '../palette';
 import { DataTable } from './Common';
+import { useIsDark } from '../theme';
 
 const AXIS = { fontSize: 12 };
 
@@ -28,7 +29,7 @@ export function ChartCard({ title, rows, children, note }: { title: string; rows
 }
 
 function useDark() {
-  return useMediaQuery('(prefers-color-scheme: dark)');
+  return useIsDark();
 }
 
 /** Series keys of the form "<entity><suffix>" present in rows, sorted. */

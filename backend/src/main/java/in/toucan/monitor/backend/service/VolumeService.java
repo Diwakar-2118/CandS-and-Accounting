@@ -125,6 +125,9 @@ public class VolumeService {
         Map<String, Map<String, Object>> series = new TreeMap<>();
         Map<String, BigDecimal[]> merchants = new HashMap<>();
         Map<String, String> merchantNames = new HashMap<>();
+        // Payment network: processor -> payment mode -> Accounting
+        Map<String, BigDecimal[]> links = new TreeMap<>();
+        Map<String, long[]> toAccounting = new TreeMap<>();
 
         for (CsTxnEntity t : txns) {
             total.add(t);
@@ -132,6 +135,15 @@ public class VolumeService {
             String ch = channelOf(t.schemeCode);
             if (ch != null) by.get(ch).add(t);
             else unclassified.merge(String.valueOf(t.schemeCode), 1L, Long::sum);
+
+            String node = ch == null ? "OTHER" : ch;
+            BigDecimal[] l = links.computeIfAbsent(String.valueOf(t.platformType) + "|" + node, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+            l[0] = l[0].add(BigDecimal.ONE);
+            l[1] = l[1].add(Optional.ofNullable(t.txnAmount).orElse(BigDecimal.ZERO));
+            long[] acc = toAccounting.computeIfAbsent(node, k -> new long[3]);
+            if ("COMPLETED".equals(t.accountingStatus)) acc[0]++;
+            else if (t.accountingStatus != null && !"NOT_CHECKED".equals(t.accountingStatus)) acc[1]++;
+            else acc[2]++;
 
             String bucket = bucket(t, hourly);
             if (bucket != null) {
@@ -185,6 +197,11 @@ public class VolumeService {
                 .map(e -> Map.<String, Object>of("merchantNumber", e.getKey(),
                         "merchantName", merchantNames.getOrDefault(e.getKey(), e.getKey()),
                         "count", e.getValue()[0].longValue(), "amount", e.getValue()[1])).toList());
+        out.put("network", Map.of(
+                "links", links.entrySet().stream().map(e -> Map.<String, Object>of("processor", e.getKey().split("\\|")[0],
+                        "mode", e.getKey().split("\\|")[1], "count", e.getValue()[0].longValue(), "amount", e.getValue()[1])).toList(),
+                "accounting", toAccounting.entrySet().stream().map(e -> Map.<String, Object>of("mode", e.getKey(),
+                        "confirmed", e.getValue()[0], "issues", e.getValue()[1], "notChecked", e.getValue()[2])).toList()));
         out.put("declineReasons", Map.of("available", false,
                 "reason", "No decline reason code field in the collected C&S transaction data"));
         return out;

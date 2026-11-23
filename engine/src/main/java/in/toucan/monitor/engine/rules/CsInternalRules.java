@@ -144,6 +144,12 @@ public final class CsInternalRules {
                     ctx.datasetRef(CS_PAYMENTS_DEBIT));
             Optional<String> down = ctx.unavailable(CS_TRANSACTIONS, CS_PAYMENTS_CREDIT, CS_PAYMENTS_DEBIT);
             if (down.isPresent()) return r.notEvaluated(down.get(), refs);
+            if (ctx.records(CS_PAYMENTS_CREDIT).isEmpty() && ctx.records(CS_PAYMENTS_DEBIT).isEmpty()) {
+                // Seen on UAT: getAllMerPay returns no rows for some users. Matching against an empty list
+                // would flag every released transaction, which says nothing about the transactions.
+                return r.notEvaluated("The payments list returned no records, so released transactions cannot be "
+                        + "matched to payments (check the account's access to Payments)", refs);
+            }
             boolean partial = ctx.data().state(CS_PAYMENTS_CREDIT).truncated()
                     || ctx.data().state(CS_PAYMENTS_DEBIT).truncated();
             Set<String> withSide = new HashSet<>();

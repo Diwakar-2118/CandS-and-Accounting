@@ -29,6 +29,9 @@ public class CollectionService {
     private static final Logger log = LoggerFactory.getLogger(CollectionService.class);
 
     /** Declared in run order: quick groups first so the dashboard fills before the slow per-record look-ups. */
+    /** Catalogued datasets that are not collected in bulk (old failures for them are not alerts). */
+    public static final Set<String> NOT_COLLECTED = Set.of(ACC_MERCHANT_LEDGER);
+
     public enum Group {
         /** Accounting reference data, trial balance, adjustments, periods, ledger statements. */
         LEDGER,
@@ -132,7 +135,8 @@ public class CollectionService {
         for (String ledger : props.getStatementLedgers()) {
             n += one(ACC_LEDGER_STATEMENT, runId, from, to, Map.of("entryType", ledger));
         }
-        n += one(ACC_MERCHANT_LEDGER, runId, from, to, Map.of());
+        // ACC_MERCHANT_LEDGER is not collected in bulk: UAT requires merchantId/fromDate/toDate per call
+        // ("Missing required parameters: merchantId/fromDate/toDate"), so it is a per-merchant drill-down.
         return n;
     }
 }

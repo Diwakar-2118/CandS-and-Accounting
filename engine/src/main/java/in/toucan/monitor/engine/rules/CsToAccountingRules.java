@@ -50,6 +50,18 @@ public final class CsToAccountingRules {
     record Totals(BigDecimal debit, BigDecimal credit, int lines) {
     }
 
+    /** Case/spacing/punctuation-insensitive comparison ("Sundry_Suspense_X" == "Sundry Suspense X"). */
+    static String norm(String s) {
+        return s == null ? "" : s.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
+    }
+
+    /** Side from creditOrDebit when present (DEBIT/CREDIT), else from which amount is non-zero. */
+    static Side side(Fields f, JsonNode row) {
+        String s = f.text(row, "posting.side");
+        if (s != null) return s.trim().toUpperCase(java.util.Locale.ROOT).startsWith("D") ? Side.DR : Side.CR;
+        return f.decimal(row, "posting.debit").orElse(BigDecimal.ZERO).signum() != 0 ? Side.DR : Side.CR;
+    }
+
     static Totals totals(Fields f, JsonNode snapshot) {
         BigDecimal d = BigDecimal.ZERO, c = BigDecimal.ZERO;
         int n = 0;
@@ -117,32 +129,35 @@ public final class CsToAccountingRules {
             Fields f = ctx.f();
             var refs = List.of(ctx.datasetRef(ACC_RRN_POSTINGS),
                     ctx.datasetRef(in.toucan.monitor.collector.Datasets.ACC_TXN_TYPES));
-            if (!f.configured("posting.ttCode")) {
-                return r.notEvaluated("The posting field that carries the TT code is not confirmed "
-                        + "(candidate: subModule). Set monitor.fields.posting.ttCode after checking runtime discovery.", refs);
+            boolean byCodeField = f.configured("posting.ttCode");
+            if (!byCodeField && !f.configured("posting.ttName")) {
+                return r.notEvaluated("No posting field identifies the transaction type "
+                        + "(set monitor.fields.posting.ttCode or posting.ttName).", refs);
             }
             Optional<String> down = ctx.unavailable(ACC_RRN_POSTINGS);
             if (down.isPresent()) return r.notEvaluated(down.get(), refs);
-            Map<String, TtMapping> byCode = new HashMap<>();
-            ctx.data().mappings().forEach(m -> byCode.put(m.code(), m));
+            // Postings carry the transaction-type NAME (observed); codes are used when a code field is configured.
+            Map<String, TtMapping> index = new HashMap<>();
+            ctx.data().mappings().forEach(m -> index.put(byCodeField ? m.code() : norm(m.name()), m));
             for (Rec snap : ctx.records(ACC_RRN_POSTINGS)) {
                 String rrn = snap.payload().path("query").path("rrn").asText();
                 int i = 0;
                 for (JsonNode row : snap.payload().path("rows")) {
                     String subject = rrn + "#" + i++;
-                    String tt = f.text(row, "posting.ttCode");
+                    String ttRaw = byCodeField ? f.text(row, "posting.ttCode") : f.text(row, "posting.ttName");
                     String ledger = f.text(row, "posting.ledger");
-                    BigDecimal dr = f.decimal(row, "posting.debit").orElse(BigDecimal.ZERO);
-                    Side side = dr.signum() != 0 ? Side.DR : Side.CR;
+                    Side side = side(f, row);
                     LocalDate d = f.date(row, "posting.dateTime").orElse(null);
-                    TtMapping m = tt == null ? null : byCode.get(tt);
+                    TtMapping m = ttRaw == null ? null : index.get(byCodeField ? ttRaw : norm(ttRaw));
+                    String tt = m == null ? ttRaw : m.code();
                     if (m == null) {
-                        r.add(subject, Outcome.NOT_EVALUATED, "No Accounting transaction type '" + tt + "'", null, d,
-                                tt, ledger, Evidence.of("known TT code", String.valueOf(tt), List.of(snap.ref())));
+                        r.add(subject, Outcome.NOT_EVALUATED, "No Accounting transaction type matches '" + ttRaw + "'",
+                                null, d, tt, ledger, Evidence.of("known transaction type", String.valueOf(ttRaw),
+                                        List.of(snap.ref())));
                     } else if (m.status() != MappingStatus.CONFIRMED) {
                         r.add(subject, Outcome.NOT_EVALUATED, "Mapping not confirmed", null, d, tt, ledger,
                                 Evidence.of("confirmed mapping", "UNCONFIRMED", List.of(snap.ref(), m.source())));
-                    } else if (m.lines().contains(new GlLine(ledger, side))) {
+                    } else if (m.lines().stream().anyMatch(l -> l.side() == side && norm(l.account()).equals(norm(ledger)))) {
                         r.pass();
                     } else {
                         r.add(subject, Outcome.FAIL, side + " " + ledger + " is not configured for " + tt, null, d, tt,
@@ -215,9 +230,13 @@ public final class CsToAccountingRules {
                 String rrn = snap.payload().path("query").path("rrn").asText();
                 Map<String, Integer> seen = new LinkedHashMap<>();
                 for (JsonNode row : snap.payload().path("rows")) {
-                    String k = f.text(row, "posting.subModule") + "|" + f.text(row, "posting.ledger") + "|"
-                            + f.decimal(row, "posting.debit").map(BigDecimal::stripTrailingZeros).orElse(null) + "|"
-                            + f.decimal(row, "posting.credit").map(BigDecimal::stripTrailingZeros).orElse(null);
+                    // Same transaction type + ledger + side + amount twice for one RRN = posted twice
+                    // (each row has its own id, so ids cannot reveal a double posting).
+                    String k = f.text(row, "posting.subModule") + "|" + f.text(row, "posting.ledger") + "|" + side(f, row)
+                            + "|" + f.decimal(row, "posting.debit").map(BigDecimal::stripTrailingZeros)
+                            .map(BigDecimal::toPlainString).orElse("")
+                            + "|" + f.decimal(row, "posting.credit").map(BigDecimal::stripTrailingZeros)
+                            .map(BigDecimal::toPlainString).orElse("");
                     seen.merge(k, 1, Integer::sum);
                 }
                 if (seen.isEmpty()) continue;

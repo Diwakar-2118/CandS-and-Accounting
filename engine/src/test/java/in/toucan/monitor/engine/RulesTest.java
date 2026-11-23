@@ -199,6 +199,47 @@ class RulesTest {
         assertThat(rs).anyMatch(r -> "AP001".equals(r.ttCode()) && r.outcome() == Outcome.FAIL);
     }
 
+    /** Row shape returned by /api/accounting/searchAllEntries on UAT (23 Nov 2026), values illustrative. */
+    static final String REAL_POSTINGS = "{\"query\":{\"rrn\":\"31543709730\"},\"netZero\":true,\"rows\":["
+            + "{\"id\":\"a1\",\"transactionName\":\"Approved Transaction\",\"description\":\"Sundry Suspense Merchant Acquiring\",\"creditOrDebit\":\"DEBIT\",\"debitAmount\":{\"value\":1000,\"code\":\"INR\"}},"
+            + "{\"id\":\"a2\",\"transactionName\":\"Approved Transaction\",\"description\":\"Sundry Suspense Merchant Payable\",\"creditOrDebit\":\"CREDIT\",\"creditAmount\":{\"value\":1000,\"code\":\"INR\"}},"
+            + "{\"id\":\"a3\",\"transactionName\":\"PU Revenue — Merchant Payable\",\"description\":\"Merchant Payable Account_PU\",\"creditOrDebit\":\"CREDIT\",\"creditAmount\":{\"value\":995.28,\"code\":\"INR\"}},"
+            + "{\"id\":\"a4\",\"transactionName\":\"PU Merchant Settlement\",\"description\":\"Merchant Payable Account_PU\",\"creditOrDebit\":\"DEBIT\",\"debitAmount\":{\"value\":995.28,\"code\":\"INR\"}}]}";
+
+    @Test
+    void r11_realPostingShapeHasNoFalseDuplicates_butARepeatedEntryIsCaught() {
+        MemView ok = new MemView().put(ACC_RRN_POSTINGS, REAL_POSTINGS);
+        assertThat(run("R11", ok, EngineConfig.defaults())).noneMatch(r -> r.outcome() == Outcome.FAIL);
+        MemView dup = new MemView().put(ACC_RRN_POSTINGS, REAL_POSTINGS.replace("]}",
+                ",{\"id\":\"a5\",\"transactionName\":\"PU Merchant Settlement\",\"description\":\"Merchant Payable Account_PU\",\"creditOrDebit\":\"DEBIT\",\"debitAmount\":{\"value\":995.28,\"code\":\"INR\"}}]}"));
+        assertThat(run("R11", dup, EngineConfig.defaults()))
+                .anyMatch(r -> r.outcome() == Outcome.FAIL && "Merchant Payable Account_PU".equals(r.ledger()));
+    }
+
+    @Test
+    void r09_matchesTransactionTypeByNameAndLedgerIgnoringUnderscores() {
+        MemView v = new MemView().put(ACC_RRN_POSTINGS, REAL_POSTINGS);
+        SourceRef src = new SourceRef("ACCOUNTING", ACC_TXN_TYPES, "/api/transactiontype/getall", "#/", "AP001", null, CLOCK.instant());
+        v.mappings.add(new TtMapping("AP001", "Approved Transaction",
+                List.of(new GlLine("Sundry_Suspense_Merchant_Acquiring", Side.DR), new GlLine("Sundry_Suspense_Merchant_Payable", Side.CR)),
+                MappingStatus.CONFIRMED, src));
+        v.mappings.add(new TtMapping("PU008", "PU Merchant Settlement", List.of(new GlLine("Bank Balance Escrow_PU", Side.CR)),
+                MappingStatus.CONFIRMED, src));
+        List<RuleResult> rs = run("R09", v, EngineConfig.defaults());
+        assertThat(summary(rs).evidence().details()).containsEntry("passed", 2); // both AP001 lines
+        assertThat(rs).anyMatch(r -> r.outcome() == Outcome.FAIL && "PU008".equals(r.ttCode())); // DR ledger not configured
+        assertThat(rs).anyMatch(r -> r.outcome() == Outcome.NOT_EVALUATED && r.message().contains("PU Revenue"));
+    }
+
+    @Test
+    void r03_emptyPaymentListIsNotEvaluatedNotAMassFailure() {
+        MemView v = new MemView().put(CS_TRANSACTIONS,
+                "{\"id\":1,\"runNumber\":\"R\",\"merchantNumber\":\"M\",\"paymentReleaseStatusEnum\":\"COMPLETED\"}");
+        RuleResult s = summary(run("R03", v, EngineConfig.defaults()));
+        assertThat(s.outcome()).isEqualTo(Outcome.NOT_EVALUATED);
+        assertThat(s.message()).contains("no records");
+    }
+
     @Test
     void r15_runningBalance() {
         MemView v = new MemView().put(ACC_LEDGER_STATEMENT, """

@@ -1,5 +1,5 @@
-import { AppBar, Box, CssBaseline, Drawer, List, ListItemButton, ListItemText, ThemeProvider, Toolbar, Typography, createTheme, useMediaQuery } from '@mui/material';
-import { useMemo } from 'react';
+import { AppBar, Box, Button, CssBaseline, Drawer, List, ListItemButton, ListItemText, ThemeProvider, Toolbar, Typography } from '@mui/material';
+import { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import FilterBar from './components/FilterBar';
@@ -11,7 +11,7 @@ import Overview from './pages/Overview';
 import Executive from './pages/Executive';
 import Transactions from './pages/Transactions';
 import Validation from './pages/Validation';
-import { SURFACE } from './palette';
+import { buildTheme, ColorModeContext, loadMode, saveMode, useColorMode } from './theme';
 
 const NAV: [string, string][] = [
   ['/', 'Executive Summary'], ['/overview', 'Operations overview'], ['/processors', 'Processors'], ['/transactions', 'C&S Transactions'], ['/files', 'Files & Reports'],
@@ -25,9 +25,10 @@ function Shell() {
   const loc = useLocation();
   return (
     <Box sx={{ display: 'flex' }}>
-      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }} color="default" elevation={0}>
+      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }} color="inherit" elevation={0}>
         <Toolbar>
           <Typography variant="h6" sx={{ flex: 1 }}>Toucan C&amp;S and Accounting Monitor (UAT, read-only)</Typography>
+          <ModeToggle />
         </Toolbar>
       </AppBar>
       <Drawer variant="permanent" sx={{ width: W, '& .MuiDrawer-paper': { width: W } }}>
@@ -60,12 +61,17 @@ function Shell() {
   );
 }
 
+function ModeToggle() {
+  const { mode, toggle } = useColorMode();
+  return <Button color="inherit" onClick={toggle}>{mode === 'dark' ? 'Light mode' : 'Dark mode'}</Button>;
+}
+
 function App() {
-  const dark = useMediaQuery('(prefers-color-scheme: dark)');
-  const theme = useMemo(() => createTheme({
-    palette: { mode: dark ? 'dark' : 'light', background: { default: dark ? SURFACE.dark : '#f5f6f8', paper: dark ? '#222221' : '#ffffff' } },
-  }), [dark]);
+  const [mode, setMode] = useState<'dark' | 'light'>(loadMode());
+  const theme = useMemo(() => buildTheme(mode), [mode]);
+  const toggle = () => setMode((m) => { const n = m === 'dark' ? 'light' : 'dark'; saveMode(n); return n; });
   return (
+    <ColorModeContext.Provider value={{ mode, toggle }}>
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
@@ -74,6 +80,7 @@ function App() {
         </FilterProvider>
       </BrowserRouter>
     </ThemeProvider>
+    </ColorModeContext.Provider>
   );
 }
 

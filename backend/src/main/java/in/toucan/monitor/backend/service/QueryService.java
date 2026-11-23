@@ -497,6 +497,7 @@ public class QueryService {
     public List<Map<String, Object>> alerts() {
         List<Map<String, Object>> out = new ArrayList<>();
         for (DatasetSnapshotEntity s : snapshots.latestFailures()) {
+            if (CollectionService.NOT_COLLECTED.contains(s.dataset)) continue;
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("severity", "HIGH");
             m.put("type", "SOURCE_UNAVAILABLE");
@@ -544,7 +545,8 @@ public class QueryService {
             m.put("runId", c.runId);
             return m;
         }).toList());
-        out.put("datasetErrors", snapshots.latestFailures().stream().map(s -> Map.of(
+        out.put("datasetErrors", snapshots.latestFailures().stream()
+                .filter(s -> !CollectionService.NOT_COLLECTED.contains(s.dataset)).map(s -> Map.of(
                 "dataset", s.dataset, "error", String.valueOf(s.error), "at", String.valueOf(s.retrievedAt))).toList());
         out.put("labelMismatches", LABEL_MISMATCHES);
         out.put("dateFormats", dateFormats());

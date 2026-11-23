@@ -90,13 +90,18 @@ public record EngineConfig(
         f.put("tt.lines", List.of("accountDetails"));
         f.put("tt.line.account", List.of("accountName"));
         f.put("tt.line.side", List.of("creditOrDebit"));
-        // Accounting postings by RRN (displayedColumns of the RRN search dialog)
-        f.put("posting.ledger", List.of("ledgerName"));
+        // Accounting postings by RRN. Runtime discovery (23 Nov 2026): rows carry id, description (ledger),
+        // transactionName (transaction-type NAME), creditOrDebit, debitAmount/creditAmount {value, code}.
+        // The UI column labels (subModule, ledgerName) are kept as fallbacks.
+        f.put("posting.id", List.of("id"));
+        f.put("posting.ledger", List.of("description", "ledgerName"));
+        f.put("posting.side", List.of("creditOrDebit"));
+        f.put("posting.ttName", List.of("transactionName"));
         f.put("posting.debit", List.of("debitAmount"));
         f.put("posting.credit", List.of("creditAmount"));
-        f.put("posting.subModule", List.of("subModule"));
+        f.put("posting.subModule", List.of("transactionName", "subModule"));
         f.put("posting.dateTime", List.of("transactionDateTime", "dateTime"));
-        f.put("posting.ttCode", List.of()); // whether subModule is the TT code is NOT confirmed
+        f.put("posting.ttCode", List.of()); // postings carry the TT name, not a code; R09 matches by name
         // Trial balance (updateDisplayedColumns)
         f.put("tb.debit", List.of("debit"));
         f.put("tb.credit", List.of("credit"));
